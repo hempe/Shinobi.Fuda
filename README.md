@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="icon.png" width="96" height="96" alt="Shinobi.Fuda Logo">
+</p>
+
 # Shinobi.Fuda
 
 Docx placeholder-replacement engine: `[[Scalar.Path]]` anywhere, `[[Collection.Property]]`
