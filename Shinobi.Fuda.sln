@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.9.34728.123
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shinobi.Fuda", "src\Shinobi.Fuda\Shinobi.Fuda.csproj", "{63CDB524-55EF-49A7-9B0E-84A65AF53211}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shinobi.Fuda.Samples", "samples\Shinobi.Fuda.Samples\Shinobi.Fuda.Samples.csproj", "{07783D9F-BC7C-4EDF-A8EB-3DB07F0CE792}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shinobi.Fuda.Tests", "tests\Shinobi.Fuda.Tests\Shinobi.Fuda.Tests.csproj", "{E7EB4D16-D191-4301-BA39-98D8EC388BBC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{63CDB524-55EF-49A7-9B0E-84A65AF53211}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63CDB524-55EF-49A7-9B0E-84A65AF53211}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63CDB524-55EF-49A7-9B0E-84A65AF53211}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63CDB524-55EF-49A7-9B0E-84A65AF53211}.Release|Any CPU.Build.0 = Release|Any CPU
+		{07783D9F-BC7C-4EDF-A8EB-3DB07F0CE792}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{07783D9F-BC7C-4EDF-A8EB-3DB07F0CE792}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{07783D9F-BC7C-4EDF-A8EB-3DB07F0CE792}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{07783D9F-BC7C-4EDF-A8EB-3DB07F0CE792}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7EB4D16-D191-4301-BA39-98D8EC388BBC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7EB4D16-D191-4301-BA39-98D8EC388BBC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7EB4D16-D191-4301-BA39-98D8EC388BBC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7EB4D16-D191-4301-BA39-98D8EC388BBC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

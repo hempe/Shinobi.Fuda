@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Shinobi.Fuda.Samples</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shinobi.Fuda\Shinobi.Fuda.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ships the sample template next to the built exe so `dotnet run` finds it by relative path. -->
+    <None Include="templates\invoice-template.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
