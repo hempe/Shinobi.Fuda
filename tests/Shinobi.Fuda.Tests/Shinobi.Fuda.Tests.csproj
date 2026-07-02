@@ -16,6 +16,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Shinobi.Fuda\Shinobi.Fuda.csproj" />
+    <ProjectReference Include="..\..\samples\Shinobi.Fuda.Samples\Shinobi.Fuda.Samples.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\samples\Shinobi.Fuda.Samples\templates\invoice-template.docx" Link="templates\invoice-template.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

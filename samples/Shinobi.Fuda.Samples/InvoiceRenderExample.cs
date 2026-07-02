@@ -4,6 +4,9 @@ namespace Shinobi.Fuda.Examples;
 
 // Template markers used for this DTO shape:
 //
+//   Rechnung [[Invoice.Number]] – [[Invoice.Date]]
+//   Kunde: [[Customer.Name]]
+//
 //   [[Repeat:Cards as Card]]
 //   Kundenkarte [[Card.Number]] – [[Card.HolderName]]                [[Card.Total]] CHF
 //
@@ -91,9 +94,13 @@ public sealed class CardDto
 
 public sealed class InvoiceDto
 {
+    [TemplateName("Customer.Name")]
     public string CustomerName { get; set; } = "";
+
+    [TemplateName("Invoice.Number")]
     public string InvoiceNumber { get; set; } = "";
 
+    [TemplateName("Invoice.Date")]
     [TemplateFormat("dd.MM.yyyy")]
     public DateTime InvoiceDate { get; set; }
 
