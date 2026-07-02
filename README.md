@@ -36,6 +36,16 @@ next to the built exe. Open it in Word to check the block-repeat output looks ri
 particularly table borders/shading on the second card, since `CloneNode(deep: true)`
 on a `Table` is the part most worth double-checking against Word's own rendering quirks.
 
+## Page breaks in repeatable regions
+
+If a Repeat block's content or a collection's template row contains a "page break
+before" paragraph setting or a manual page-break character, the renderer strips it
+and reports a warning instead of silently cloning it onto every single item — that
+setting almost always leaked in from designing the reference layout (e.g. forcing
+each example card onto its own page while building the template) rather than being
+intentional per-clone behavior. Use the `Render(bytes, data, out warnings)` overload
+to see what, if anything, was removed.
+
 ## Wiring in
 
 `src/Shinobi.Fuda` has no dependency on anything project-specific — the only package

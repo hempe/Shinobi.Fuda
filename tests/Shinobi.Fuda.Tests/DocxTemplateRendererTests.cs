@@ -133,6 +133,86 @@ public class DocxTemplateRendererTests
     }
 
     [Fact]
+    public void PageBreakBeforeInsideRepeatBlockIsStrippedAndWarned()
+    {
+        var startMarker = TestDocx.Para("[[Repeat:Cards as Card]]");
+        var header = TestDocx.ParaWithPageBreakBefore("Card [[Card.Number]]");
+        var endMarker = TestDocx.Para("[[EndRepeat:Cards]]");
+        var template = TestDocx.Create(startMarker, header, endMarker);
+
+        var card1 = new TemplateData();
+        card1.Scalars["Number"] = "1";
+        var card2 = new TemplateData();
+        card2.Scalars["Number"] = "2";
+
+        var data = new TemplateData();
+        data.Blocks["Cards"] = new List<TemplateData> { card1, card2 };
+
+        var generated = new DocxTemplateRenderer().Render(template, data, out var warnings);
+
+        Assert.False(TestDocx.HasAnyPageBreak(generated));
+        Assert.Contains(warnings, w => w.Contains("page break before", StringComparison.OrdinalIgnoreCase)
+                                     && w.Contains("Cards"));
+        Assert.Contains("Card 1", TestDocx.GetAllText(generated));
+        Assert.Contains("Card 2", TestDocx.GetAllText(generated));
+    }
+
+    [Fact]
+    public void ManualPageBreakInsideRepeatBlockIsStrippedAndWarned()
+    {
+        var startMarker = TestDocx.Para("[[Repeat:Cards as Card]]");
+        var header = TestDocx.ParaWithManualPageBreak("Card [[Card.Number]]");
+        var endMarker = TestDocx.Para("[[EndRepeat:Cards]]");
+        var template = TestDocx.Create(startMarker, header, endMarker);
+
+        var data = new TemplateData();
+        data.Blocks["Cards"] = new List<TemplateData>
+        {
+            new() { Scalars = { ["Number"] = "1" } },
+            new() { Scalars = { ["Number"] = "2" } },
+        };
+
+        var generated = new DocxTemplateRenderer().Render(template, data, out var warnings);
+
+        Assert.False(TestDocx.HasAnyPageBreak(generated));
+        Assert.Contains(warnings, w => w.Contains("manual page break", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void PageBreakBeforeInsideCollectionRowIsStrippedAndWarned()
+    {
+        var templateRow = TestDocx.Row("[[Records.Name]]");
+        templateRow.Elements<TableCell>().First().Append(TestDocx.ParaWithPageBreakBefore(""));
+        var table = TestDocx.SimpleTable(templateRow);
+        var template = TestDocx.Create(table);
+
+        var data = new TemplateData();
+        data.Collections["Records"] = new List<Dictionary<string, string>>
+        {
+            new(StringComparer.OrdinalIgnoreCase) { ["Name"] = "Apple" },
+            new(StringComparer.OrdinalIgnoreCase) { ["Name"] = "Orange" },
+        };
+
+        var generated = new DocxTemplateRenderer().Render(template, data, out var warnings);
+
+        Assert.False(TestDocx.HasAnyPageBreak(generated));
+        Assert.Contains(warnings, w => w.Contains("page break before", StringComparison.OrdinalIgnoreCase)
+                                     && w.Contains("Records"));
+    }
+
+    [Fact]
+    public void NoWarningsWhenTemplateHasNoPageBreaks()
+    {
+        var template = TestDocx.Create(TestDocx.Para("Hello [[Customer.Name]]"));
+        var data = new TemplateData();
+        data.Scalars["Customer.Name"] = "Jane";
+
+        new DocxTemplateRenderer().Render(template, data, out var warnings);
+
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
     public void UnmatchedRepeatMarkerIsReportedNotSilentlyIgnored()
     {
         var template = TestDocx.Create(

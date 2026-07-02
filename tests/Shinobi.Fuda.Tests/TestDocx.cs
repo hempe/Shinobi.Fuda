@@ -30,6 +30,24 @@ internal static class TestDocx
     public static Paragraph Para(string text) =>
         new(new Run(new Text(text) { Space = SpaceProcessingModeValues.Preserve }));
 
+    public static Paragraph ParaWithPageBreakBefore(string text) =>
+        new(
+            new ParagraphProperties(new PageBreakBefore()),
+            new Run(new Text(text) { Space = SpaceProcessingModeValues.Preserve }));
+
+    public static Paragraph ParaWithManualPageBreak(string text) =>
+        new(new Run(new Break { Type = BreakValues.Page }, new Text(text) { Space = SpaceProcessingModeValues.Preserve }));
+
+    public static bool HasAnyPageBreak(byte[] docBytes)
+    {
+        using var stream = new MemoryStream(docBytes);
+        using var doc = WordprocessingDocument.Open(stream, isEditable: false);
+        var body = doc.MainDocumentPart!.Document.Body!;
+
+        return body.Descendants<PageBreakBefore>().Any(b => b.Val is null || b.Val.Value)
+            || body.Descendants<Break>().Any(b => b.Type?.Value == BreakValues.Page);
+    }
+
     public static Table SimpleTable(params TableRow[] rows)
     {
         var table = new Table();

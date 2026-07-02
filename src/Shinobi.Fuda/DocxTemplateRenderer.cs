@@ -54,11 +54,22 @@ public sealed class DocxTemplateRenderer
     /// Throws <see cref="TemplateValidationException"/> if validation fails; the
     /// source template bytes are never mutated (rendering happens on a copy).
     /// </summary>
-    public byte[] Render(byte[] templateBytes, TemplateData data)
+    public byte[] Render(byte[] templateBytes, TemplateData data) => Render(templateBytes, data, out _);
+
+    /// <summary>
+    /// Same as <see cref="Render(byte[], TemplateData)"/>, but also reports non-fatal
+    /// warnings — currently just page breaks found inside a repeatable region (a Repeat
+    /// block or a collection's template row), which would otherwise force a page break
+    /// on every single cloned item. Those are stripped automatically since a "template"
+    /// forcing a break on every clone is never what's intended.
+    /// </summary>
+    public byte[] Render(byte[] templateBytes, TemplateData data, out IReadOnlyList<string> warnings)
     {
         using var output = new MemoryStream();
         output.Write(templateBytes, 0, templateBytes.Length);
         output.Position = 0;
+
+        var warningList = new List<string>();
 
         using (var doc = WordprocessingDocument.Open(output, isEditable: true))
         {
@@ -71,7 +82,7 @@ public sealed class DocxTemplateRenderer
 
             var errors = new List<string>();
             foreach (var part in parts)
-                ProcessPart(part, data, errors);
+                ProcessPart(part, data, errors, warningList);
 
             if (errors.Count > 0)
                 throw new TemplateValidationException(errors);
@@ -80,30 +91,31 @@ public sealed class DocxTemplateRenderer
                 part.RootElement?.Save();
         }
 
+        warnings = warningList;
         return output.ToArray();
     }
 
     // ---- Part-level orchestration -------------------------------------------------------
 
-    private void ProcessPart(OpenXmlPart part, TemplateData data, List<string> errors)
+    private void ProcessPart(OpenXmlPart part, TemplateData data, List<string> errors, List<string> warnings)
     {
         var root = part.RootElement;
         if (root is null) return;
 
         // Block regions first — cloning changes the tree, and a block's own scalar/
         // collection placeholders are resolved recursively as each clone is created.
-        ProcessBlocksRecursive(root, data, errors);
+        ProcessBlocksRecursive(root, data, errors, warnings);
 
         // Whatever collections/scalars remain outside any block.
-        ProcessSubtree(root, data, errors);
+        ProcessSubtree(root, data, errors, warnings);
     }
 
-    private void ProcessSubtree(OpenXmlElement root, TemplateData data, List<string> errors)
+    private void ProcessSubtree(OpenXmlElement root, TemplateData data, List<string> errors, List<string> warnings)
     {
         var tables = (root is Table t ? new[] { t } : Array.Empty<Table>())
             .Concat(root.Descendants<Table>()).ToList();
         foreach (var table in tables)
-            ProcessTable(table, data, errors);
+            ProcessTable(table, data, errors, warnings);
 
         var paragraphs = (root is Paragraph p ? new[] { p } : Array.Empty<Paragraph>())
             .Concat(root.Descendants<Paragraph>()).ToList();
@@ -113,18 +125,18 @@ public sealed class DocxTemplateRenderer
 
     // ---- Block (Repeat/EndRepeat) handling ------------------------------------------------
 
-    private void ProcessBlocksRecursive(OpenXmlElement container, TemplateData data, List<string> errors)
+    private void ProcessBlocksRecursive(OpenXmlElement container, TemplateData data, List<string> errors, List<string> warnings)
     {
-        while (TryProcessOneBlock(container, data, errors)) { }
+        while (TryProcessOneBlock(container, data, errors, warnings)) { }
 
         foreach (var child in container.ChildElements.ToList())
         {
             if (child.HasChildren)
-                ProcessBlocksRecursive(child, data, errors);
+                ProcessBlocksRecursive(child, data, errors, warnings);
         }
     }
 
-    private bool TryProcessOneBlock(OpenXmlElement container, TemplateData data, List<string> errors)
+    private bool TryProcessOneBlock(OpenXmlElement container, TemplateData data, List<string> errors, List<string> warnings)
     {
         var children = container.ChildElements.ToList();
 
@@ -170,6 +182,10 @@ public sealed class DocxTemplateRenderer
         var endMarker = children[endIdx];
         var contentRange = children.Skip(startIdx + 1).Take(endIdx - startIdx - 1).ToList();
 
+        // Strip once, on the shared source content, before cloning — a page break here
+        // would otherwise force a new page on every single cloned item.
+        StripPageBreaks(contentRange, $"the '{blockKey}' repeat block", warnings);
+
         if (!data.Blocks.TryGetValue(blockKey!, out var items))
         {
             errors.Add($"Unknown block: {blockKey}");
@@ -186,8 +202,8 @@ public sealed class DocxTemplateRenderer
                 container.InsertAfter(clone, anchor);
                 anchor = clone;
 
-                ProcessBlocksRecursive(clone, effective, errors); // nested blocks, if any
-                ProcessSubtree(clone, effective, errors);
+                ProcessBlocksRecursive(clone, effective, errors, warnings); // nested blocks, if any
+                ProcessSubtree(clone, effective, errors, warnings);
             }
         }
 
@@ -220,9 +236,49 @@ public sealed class DocxTemplateRenderer
 
     private static string GetParagraphText(Paragraph p) => string.Concat(p.Descendants<Text>().Select(t => t.Text));
 
+    /// <summary>
+    /// Removes any "page break before" paragraph setting and any manual page-break run
+    /// found within <paramref name="nodes"/>, reporting one warning per occurrence. Meant
+    /// to run once on the shared source content of a repeatable region (a Repeat block's
+    /// content range, or a collection's template row) before it gets cloned per item —
+    /// otherwise every single clone would force its own page break, which is essentially
+    /// never what a template author intends.
+    /// </summary>
+    private static void StripPageBreaks(IEnumerable<OpenXmlElement> nodes, string regionLabel, List<string> warnings)
+    {
+        foreach (var node in nodes)
+        {
+            var paragraphs = (node is Paragraph p ? new[] { p } : Array.Empty<Paragraph>())
+                .Concat(node.Descendants<Paragraph>());
+
+            foreach (var paragraph in paragraphs)
+            {
+                var pageBreakBefore = paragraph.ParagraphProperties?.PageBreakBefore;
+                if (pageBreakBefore is null) continue;
+                if (pageBreakBefore.Val is not null && !pageBreakBefore.Val.Value)
+                    continue; // <w:pageBreakBefore w:val="false"/> explicitly turns it off
+
+                pageBreakBefore.Remove();
+                warnings.Add($"Removed a 'page break before' paragraph setting found inside {regionLabel}; " +
+                             "it would otherwise force a page break on every cloned copy.");
+            }
+
+            var manualBreaks = node.Descendants<Break>()
+                .Where(b => b.Type?.Value == BreakValues.Page)
+                .ToList();
+
+            foreach (var manualBreak in manualBreaks)
+            {
+                manualBreak.Remove();
+                warnings.Add($"Removed a manual page break found inside {regionLabel}; " +
+                             "it would otherwise force a page break on every cloned copy.");
+            }
+        }
+    }
+
     // ---- Table / collection handling ----------------------------------------------------
 
-    private void ProcessTable(Table table, TemplateData data, List<string> errors)
+    private void ProcessTable(Table table, TemplateData data, List<string> errors, List<string> warnings)
     {
         foreach (var row in table.Elements<TableRow>().ToList())
         {
@@ -255,6 +311,10 @@ public sealed class DocxTemplateRenderer
                 row.Remove();
                 continue;
             }
+
+            // Strip once, on the shared template row, before cloning — a page break here
+            // would otherwise force a new page on every single cloned row.
+            StripPageBreaks(new[] { (OpenXmlElement)row }, $"the template row for collection '{collectionName}'", warnings);
 
             var parent = row.Parent!;
             OpenXmlElement anchor = row;
